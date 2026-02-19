@@ -1,0 +1,30 @@
+{
+  "RootPath": "C:\\DocumentSorter",
+  "Dictionary": [
+    {
+      "RuleId": "MedicalStatement",
+      "Words": ["provider", "patient", "statement"],
+      "Destination": "Personal\\Medical"
+    },
+    {
+      "RuleId": "UtilityBill",
+      "Words": ["account", "service", "due"],
+      "Destination": "Personal\\Bills\\Utilities"
+    },
+    {
+      "RuleId": "BankStatement",
+      "Words": ["bank", "statement", "balance"],
+      "Destination": "Personal\\Finance\\Banking"
+    },
+    {
+      "RuleId": "InsuranceNotice",
+      "Words": ["policy", "coverage", "premium"],
+      "Destination": "Personal\\Insurance"
+    },
+    {
+      "RuleId": "TaxDocument",
+      "Words": ["tax", "year", "form"],
+      "Destination": "Personal\\Taxes"
+    }
+  ]
+}

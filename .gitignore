@@ -1,0 +1,30 @@
+# Build artifacts
+**/bin/
+**/obj/
+
+# IDE/editor
+**/.vs/
+**/.cr/
+*.user
+*.suo
+
+# Logs and profiler output
+**/logs/
+*.log
+*.vspx
+
+# Test/build output
+TestResults/
+TestResult.xml
+nunit-agent*.log
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# License keys
+dcsrt/Properties/itextkey.xml
+
+# Amazon Q rules (optional - keep if you want to share coding standards)
+.amazonq/
+/packages
