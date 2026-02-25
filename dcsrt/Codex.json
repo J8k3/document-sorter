@@ -1,0 +1,35 @@
+{
+  "RootPath": "C:\\DocumentSorter",
+  "Dictionary": [
+    {
+      "RuleId": "Financial-Bank-Statement",
+      "Words": [
+        "bank",
+        "statement",
+        "balance",
+        "account"
+      ],
+      "Destination": "Personal\\Finance\\Banking"
+    },
+    {
+      "RuleId": "Utility-Electric-Bill",
+      "Words": [
+        "electric",
+        "utility",
+        "kwh",
+        "service"
+      ],
+      "Destination": "Personal\\Bills\\Utilities\\Electric"
+    },
+    {
+      "RuleId": "Insurance-Auto-Policy",
+      "Words": [
+        "insurance",
+        "policy",
+        "vehicle",
+        "coverage"
+      ],
+      "Destination": "Personal\\Insurance\\Auto"
+    }
+  ]
+}
