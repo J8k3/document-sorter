@@ -25,6 +25,11 @@ Thumbs.db
 # License keys
 dcsrt/Properties/itextkey.xml
 
+# Personal codex files (contain sensitive paths/account numbers)
+dcsrt/Codex.json
+dcsrt/Codex.personal.json
+dcsrt/*.personal.json
+
 # Amazon Q rules (optional - keep if you want to share coding standards)
 .amazonq/
 /packages
