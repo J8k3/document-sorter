@@ -11,7 +11,6 @@ namespace dcsrt
         {
             this.Dictionary = new List<Codex>();
         }
-        public string RootPath { get; set; }
 
         public IEnumerable<Codex> Dictionary { get; set; }
 

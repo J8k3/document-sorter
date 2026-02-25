@@ -58,7 +58,7 @@ namespace dcsrt
                 {
                     if (this.IsValid && this.IsMatchedToCodex)
                     {
-                        this.m_DestinationFilePath = System.IO.Path.Combine(CodexManager.Codex.RootPath, this.MatchedCodex.Destination, this.SourceFile.Name);
+                        this.m_DestinationFilePath = System.IO.Path.Combine(this.MatchedCodex.Destination, this.SourceFile.Name);
                     }
                 }
                 return this.m_DestinationFilePath;
@@ -82,7 +82,7 @@ namespace dcsrt
                 catch (System.IO.IOException ex)
                 {
                     success = false;
-                    Program.Context.Logger
+                    Program.Logger
                         .Log(LogLevel.Error,
                              ex,
                              "Failed to move [{0}] to [{1}]. {2} {3}",

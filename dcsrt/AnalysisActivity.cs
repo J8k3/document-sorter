@@ -1,7 +1,9 @@
+using FuzzySharp;
 using FuzzySharp.Extractor;
 using FuzzySharp.SimilarityRatio;
 using FuzzySharp.SimilarityRatio.Scorer;
 using FuzzySharp.SimilarityRatio.Scorer.Composite;
+using FuzzySharp.SimilarityRatio.Scorer.StrategySensitive;
 using NLog;
 using StackExchange.Profiling;
 using System;
@@ -17,10 +19,11 @@ namespace dcsrt
         {
             using (MiniProfiler.Current.Step("Beginning Main Analysis"))
             {
-                DirectoryAnalysisResponse response = AnalysisActivity.AnalyzeDirectory(arguments.SourcePath, arguments.SearchDepth, arguments.MatchingStrategy, arguments.MatchingThreshold, arguments.DryRunMode, arguments.MatchPercentage);
+                DirectoryAnalysisResponse response = AnalysisActivity.AnalyzeDirectory(arguments.SourcePath, arguments.SearchDepth, arguments.MatchingStrategy, arguments.MatchingThreshold, arguments.DryRunMode, arguments.MatchPercentage, arguments.PagesToAnalyze, arguments.AllowMultiMatch);
 
                 if (response.InvalidDocuments.Count > 0)
                 {
+                    Program.Logger.Log(LogLevel.Warn, "Found {0} invalid PDF documents.", response.InvalidDocuments.Count);
                     string value = null;
 
                     if (arguments.SilentlyDeleteInvalidPDFs)
@@ -29,6 +32,7 @@ namespace dcsrt
                     }
                     else
                     {
+                        ProgressTracker.Clear();
                         Console.WriteLine("Do you want to delete the invalid PDFs encountered? (Y/n)");
                         foreach (FileAnalysisResponse document in response.InvalidDocuments)
                         {
@@ -42,21 +46,22 @@ namespace dcsrt
                         foreach (FileAnalysisResponse document in response.InvalidDocuments)
                         {
                             File.Delete(document.SourceFilePath);
+                            Program.Logger.Log(LogLevel.Info, "Deleted invalid PDF: {0}", document.SourceFilePath);
                         }
                     }
                 }
             }
         }
 
-        public static DirectoryAnalysisResponse AnalyzeDirectory(string sourceDirectoryPath, SearchOption searchOption, MatchingStrategy matchingStrategy, int matchingThreshold = 0, bool dryrun = false, int matchPercentage = 70, int pagesToAnalyze = 1)
+        public static DirectoryAnalysisResponse AnalyzeDirectory(string sourceDirectoryPath, SearchOption searchOption, MatchingStrategy matchingStrategy, int matchingThreshold = 0, bool dryrun = false, int matchPercentage = 70, int pagesToAnalyze = 1, bool allowMultiMatch = false)
         {
             DirectoryAnalysisResponse response = new DirectoryAnalysisResponse();
 
-            Dictionary<string, string> documents = TrainingActivity.LoadDocuments(sourceDirectoryPath, searchOption, pagesToAnalyze);
+            Dictionary<string, string> documents = PdfUtil.LoadDocuments(sourceDirectoryPath, searchOption, pagesToAnalyze);
 
             foreach (KeyValuePair<string, string> document in documents)
             {
-                FileAnalysisResponse fileResponse = AnalysisActivity.AnalyzeFile(document.Key, document.Value, !dryrun, matchingStrategy, matchingThreshold, matchPercentage);
+                FileAnalysisResponse fileResponse = AnalysisActivity.AnalyzeFile(document.Key, document.Value, !dryrun, matchingStrategy, matchingThreshold, matchPercentage, allowMultiMatch);
 
                 if (fileResponse.IsValid)
                 {
@@ -68,16 +73,16 @@ namespace dcsrt
                 }
             }
 
-            Program.Context.Logger.Log(LogLevel.Info, "Completed analyzing Documents.");
+            Program.Logger.Log(LogLevel.Info, "Completed analyzing {0} documents. Valid: {1}, Invalid: {2}", documents.Count, response.ValidDocuments.Count, response.InvalidDocuments.Count);
 
             return response;
         }
 
-        public static FileAnalysisResponse AnalyzeFile(string sourceFilePath, string content, bool moveFileOnMatch, MatchingStrategy matchingStrategy, int matchingThreshold = 0, int matchPercentage = 70)
+        public static FileAnalysisResponse AnalyzeFile(string sourceFilePath, string content, bool moveFileOnMatch, MatchingStrategy matchingStrategy, int matchingThreshold = 0, int matchPercentage = 70, bool allowMultiMatch = false)
         {
             FileAnalysisResponse response = new FileAnalysisResponse(sourceFilePath);
 
-            Program.Context.Logger.Log(LogLevel.Trace, "Analyzing source file [{0}].", sourceFilePath);
+            Program.Logger.Log(LogLevel.Trace, "Analyzing source file [{0}].", sourceFilePath);
 
             if (response.SourceFile.Exists)
             {
@@ -87,7 +92,7 @@ namespace dcsrt
 
                     response.IsValid = true;
                     response.HasRuleCollision = matchedCodexEntries.Count > 1;
-                    response.MatchedCodex = matchedCodexEntries.FirstOrDefault();
+                    response.MatchedCodex = allowMultiMatch ? matchedCodexEntries.FirstOrDefault() : (matchedCodexEntries.Count == 1 ? matchedCodexEntries.FirstOrDefault() : null);
 
                     foreach (Codex candidate in matchedCodexEntries)
                     {
@@ -96,29 +101,40 @@ namespace dcsrt
 
                     if (response.HasRuleCollision)
                     {
-                        Program.Context.Logger.Log(
-                            LogLevel.Warn,
-                            "Source file [{0}] matched multiple codex entries [{1}]. Deterministically choosing [{2}] by highest keyword count and RuleId sort.",
-                            sourceFilePath,
-                            string.Join(", ", response.CandidateRuleIds),
-                            response.MatchedCodex?.RuleId ?? "None");
+                        if (allowMultiMatch)
+                        {
+                            Program.Logger.Log(
+                                LogLevel.Warn,
+                                "Source file [{0}] matched multiple codex entries [{1}]. Deterministically choosing [{2}] by highest keyword count and RuleId sort.",
+                                sourceFilePath,
+                                string.Join(", ", response.CandidateRuleIds),
+                                response.MatchedCodex?.RuleId ?? "None");
+                        }
+                        else
+                        {
+                            Program.Logger.Log(
+                                LogLevel.Warn,
+                                "Source file [{0}] matched multiple codex entries [{1}]. Skipping file (use --allow-multi-match to enable deterministic selection).",
+                                sourceFilePath,
+                                string.Join(", ", response.CandidateRuleIds));
+                        }
                     }
 
                     if (response.IsMatchedToCodex)
                     {
-                        Program.Context.Logger.Log(
+                        Program.Logger.Log(
                                  LogLevel.Info,
-                                 "Source file [{0}] matched to rule [{1}] in [{2}ms] and will be moved to the destination [{3}].",
+                                 "Source file [{0}] matched to rule [{1}] in {2}ms and will be moved to the destination [{3}].",
                                  sourceFilePath,
                                  response.MatchedCodex.RuleId,
-                                 step.DurationMilliseconds,
+                                 step.DurationMilliseconds.HasValue ? step.DurationMilliseconds.Value.ToString("F0") : "?",
                                  response.DestinationFilePath);
 
                         if (moveFileOnMatch)
                         {
                             if (!response.TryMoveFile())
                             {
-                                Program.Context.Logger.Log(
+                                Program.Logger.Log(
                                     LogLevel.Info,
                                     "Source file [{0}] was {1}moved.",
                                     sourceFilePath,
@@ -126,11 +142,11 @@ namespace dcsrt
                             }
                         }
 
-                        Program.Context.Logger.Log(LogLevel.Debug, response.MatchedCodex);
+                        Program.Logger.Log(LogLevel.Debug, response.MatchedCodex);
                     }
                     else
                     {
-                        Program.Context.Logger.Log(LogLevel.Trace, "Unable to find a Codex match for [{0}].", sourceFilePath);
+                        Program.Logger.Log(LogLevel.Debug, "Unable to find a Codex match for [{0}].", sourceFilePath);
                     }
                 }
             }
@@ -147,7 +163,7 @@ namespace dcsrt
         {
             List<Codex> matches = new List<Codex>();
 
-            foreach (Codex codex in Program.Context.Codex)
+            foreach (Codex codex in CodexManager.Codex)
             {
                 using (MiniProfiler.Current.Step($"Testing codex [{codex.RuleId}] against document."))
                 {
@@ -156,8 +172,14 @@ namespace dcsrt
                     if (isMatchedToCodexEntry)
                     {
                         matches.Add(codex);
+                        Program.Logger.Log(LogLevel.Debug, "Rule [{0}] matched.", codex.RuleId);
                     }
                 }
+            }
+
+            if (matches.Count == 0)
+            {
+                Program.Logger.Log(LogLevel.Debug, "No codex rules matched.");
             }
 
             return matches.OrderByDescending(c => c.Words?.Count() ?? 0).ThenBy(c => c.RuleId, StringComparer.OrdinalIgnoreCase).ToList();
@@ -194,27 +216,8 @@ namespace dcsrt
                 return false;
             }
 
-            string[] contentArray = { };
             int totalWords = words.Count();
             int matchedWords = 0;
-
-            switch (matchingStrategy)
-            {
-                case MatchingStrategy.Probabilistic:
-                    {
-                        contentArray = content.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                        break;
-                    }
-                case MatchingStrategy.StringSearch:
-                    {
-                        content = content.ToUpperInvariant();
-                        break;
-                    }
-                default:
-                    {
-                        throw new NotSupportedException($"The Matching Strategy [{matchingStrategy}] is not supported.");
-                    }
-            }
 
             foreach (string word in words)
             {
@@ -236,12 +239,13 @@ namespace dcsrt
                                     throw new InvalidOperationException("Matching threshold must be greater than zero.");
                                 }
 
+                                string[] contentArray = content.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                                 wordMatch = AnalysisActivity.MatchDocumentWithProbabilisticMatchingStrategy(matchingThreshold, contentArray, word);
                                 break;
                             }
                         case MatchingStrategy.StringSearch:
                             {
-                                wordMatch = content.Contains(word.ToUpperInvariant());
+                                wordMatch = (content.IndexOf(word, StringComparison.OrdinalIgnoreCase) >= 0);
                                 break;
                             }
                         default:
@@ -259,17 +263,33 @@ namespace dcsrt
 
             double actualMatchPercentage = (double)matchedWords / totalWords;
             double requiredPercentage = matchPercentage / 100.0;
-            Program.Context.Logger.Log(LogLevel.Debug, $"Document match: {matchedWords}/{totalWords} words ({actualMatchPercentage:P0})");
+            Program.Logger.Log(LogLevel.Debug, $"Document match: {matchedWords}/{totalWords} words ({actualMatchPercentage:P0})");
             return actualMatchPercentage >= requiredPercentage;
         }
 
         private static bool MatchDocumentWithProbabilisticMatchingStrategy(int matchingThreshold, string[] normalizedContentArray, string word)
         {
-            string normalizedWord = word.ToLowerInvariant();
-            IRatioScorer scorer = ScorerCache.Get<WeightedRatioScorer>();
-            ExtractedResult<string> analysis = FuzzySharp.Process.ExtractOne(normalizedWord, normalizedContentArray, s => s, scorer, 0);
-            bool match = (analysis != null) && (analysis.Score >= matchingThreshold);
-            return match;
+            IRatioScorer scorer = ScorerCache.Get<PartialRatioScorer>();
+            ExtractedResult<string> analysis = FuzzySharp.Process.ExtractOne(word, normalizedContentArray, s => s, scorer, 0);
+            
+            if (analysis != null && analysis.Score >= matchingThreshold)
+            {
+                return true;
+            }
+            
+            foreach (string token in normalizedContentArray)
+            {
+                if (token.Length > word.Length)
+                {
+                    int score = Fuzz.PartialRatio(word, token);
+                    if (score >= matchingThreshold)
+                    {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
         }
     }
 }

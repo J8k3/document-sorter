@@ -1,4 +1,6 @@
 using CommandLine;
+using NLog;
+using NLog.Config;
 using StackExchange.Profiling;
 using System;
 
@@ -8,12 +10,17 @@ namespace dcsrt
     {
         public const string ScanSnapCreator = "PFU ScanSnap Organizer 5.6.40 #iX500";
         public const string ScanSnapProducer = "PFU PDF Library 1.4.1";
-
-        internal static AppContext Context;
+        internal static NLog.Logger Logger
+        {
+            get
+            {
+                return NLog.LogManager.GetCurrentClassLogger();
+            }
+        }
 
         static Program()
         {
-            Program.Context = new AppContext();
+            LogManager.Setup().SetupExtensions(s => s.RegisterTarget<ProgressAwareConsoleTarget>("ProgressAwareConsole"));
         }
 
         static void Main(string[] args)
@@ -52,7 +59,7 @@ namespace dcsrt
 
             if (MiniProfiler.Current != null)
             {
-                Program.Context.Logger.Log(NLog.LogLevel.Trace, MiniProfiler.Current.RenderPlainText());
+                Program.Logger.Log(NLog.LogLevel.Trace, MiniProfiler.Current.RenderPlainText());
             }
 
             if (arguments != null)

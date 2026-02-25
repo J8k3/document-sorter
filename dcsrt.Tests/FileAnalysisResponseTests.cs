@@ -43,21 +43,20 @@ namespace dcsrt.Tests
             {
                 CodexDictionary testCodex = new CodexDictionary
                 {
-                    RootPath = "C:\\Root",
                     Dictionary = new[]
                     {
-                        new Codex { RuleId = "TestRule", Destination = "SubFolder", Words = new[] { "test" } }
+                        new Codex { RuleId = "TestRule", Destination = "C:\\\\Root\\\\SubFolder", Words = new[] { "test" } }
                     }
                 };
                 string json = JsonConvert.SerializeObject(testCodex);
                 File.WriteAllText(testFile, json);
                 CodexManager.Reload(testFile);
-                FileAnalysisResponse response = new FileAnalysisResponse("C:\\source\\test.pdf")
+                FileAnalysisResponse response = new FileAnalysisResponse("C:\\\\source\\\\test.pdf")
                 {
                     IsValid = true,
-                    MatchedCodex = new Codex { RuleId = "TestRule", Destination = "SubFolder" }
+                    MatchedCodex = new Codex { RuleId = "TestRule", Destination = "C:\\\\Root\\\\SubFolder" }
                 };
-                string expected = "C:\\Root\\SubFolder\\test.pdf";
+                string expected = "C:\\\\Root\\\\SubFolder\\\\test.pdf";
                 Assert.That(response.DestinationFilePath, Is.EqualTo(expected));
             }
             finally

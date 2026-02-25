@@ -2,6 +2,7 @@ using StackExchange.Profiling;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -9,14 +10,26 @@ namespace dcsrt
 {
     public static class StringExtensions
     {
+        private static readonly Lazy<HashSet<string>> StopWords = new Lazy<HashSet<string>>(() =>
+        {
+            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "stopwords.txt");
+            if (File.Exists(path))
+            {
+                return new HashSet<string>(File.ReadAllLines(path), StringComparer.OrdinalIgnoreCase);
+            }
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        });
+
+        private static readonly Lazy<Annytab.Stemmer.EnglishStemmer> Stemmer = new Lazy<Annytab.Stemmer.EnglishStemmer>(() => new Annytab.Stemmer.EnglishStemmer());
+
+        private static readonly Regex WhitespaceRegex = new Regex(@"\s+", RegexOptions.Compiled);
+
         public static string StemToLowerInvariant(this string content)
         {
             string result = content;
             if (!string.IsNullOrEmpty(content))
             {
-                Annytab.Stemmer.EnglishStemmer stemmer = new Annytab.Stemmer.EnglishStemmer();
-
-                result = stemmer.GetSteamWord(result);
+                result = Stemmer.Value.GetSteamWord(result);
             }
             return result;
         }
@@ -60,34 +73,50 @@ namespace dcsrt
             return result;
         }
 
-        public static string RemoveExcludeWordsToLowerInvariant(this string content)
+        public static string RemoveStopWords(this string content)
         {
             string result = content;
 
             if (!string.IsNullOrEmpty(content))
             {
-                result = result.ToLowerInvariant();
-
-                var stopWords = Properties.Settings.Default.StopWords;
-
                 using (MiniProfiler.Current.Step("Removing Stop Words"))
                 {
-                    foreach (var stopWord in stopWords)
+                    string[] words = content.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    List<string> filtered = new List<string>(words.Length);
+
+                    foreach (string word in words)
                     {
-                        if (string.IsNullOrWhiteSpace(stopWord))
+                        if (!StopWords.Value.Contains(word) && !IsNumericOnly(word))
                         {
-                            continue;
+                            filtered.Add(word);
                         }
-
-                        string escapedStopWord = Regex.Escape(stopWord.ToLowerInvariant());
-                        result = Regex.Replace(result, $@"\b{escapedStopWord}\b", " ", RegexOptions.CultureInvariant);
                     }
-                }
 
-                result = result.RemoveDuplicateWhitespace().Trim();
+                    result = string.Join(" ", filtered);
+                }
             }
 
             return result;
+        }
+
+        private static bool IsNumericOnly(string word)
+        {
+            if (string.IsNullOrEmpty(word))
+            {
+                return false;
+            }
+            if (word.Length >= 4)
+            {
+                return false;
+            }
+            foreach (char c in word)
+            {
+                if (!char.IsDigit(c))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         public static string CamelCase(this string content)
@@ -113,7 +142,7 @@ namespace dcsrt
             {
                 if (!string.IsNullOrEmpty(content))
                 {
-                    result = Regex.Replace(content, @"\s+", " ");
+                    result = WhitespaceRegex.Replace(content, " ");
                 }
             }
 
@@ -147,7 +176,7 @@ namespace dcsrt
             {
                 if (!string.IsNullOrEmpty(content))
                 {
-                    result = Regex.Replace(content, regexPattern, replacementCharacter);
+                    result = Regex.Replace(content, regexPattern, replacementCharacter, RegexOptions.IgnoreCase & RegexOptions.CultureInvariant);
                 }
             }
             return result;

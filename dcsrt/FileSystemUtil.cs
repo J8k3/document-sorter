@@ -1,4 +1,4 @@
-﻿using NLog;
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,7 +19,7 @@ namespace dcsrt
             }
             catch (Exception ex)
             {
-                Program.Context.Logger.Log(LogLevel.Fatal, ex, "Failed to enumerate files in path [{0}].", rootPath);
+                Program.Logger.Log(LogLevel.Fatal, ex, "Failed to enumerate files in path [{0}].", rootPath);
                 throw new AggregateException(ex);
             }
 
@@ -32,7 +32,7 @@ namespace dcsrt
 
             if (destinationFile.Directory.Exists == false)
             {
-                Program.Context.Logger
+                Program.Logger
                     .Log(LogLevel.Info,
                          "Destination directory [{0}] not found. Directory will be created.",
                          destinationFile.Directory.FullName);
@@ -41,7 +41,7 @@ namespace dcsrt
 
             if (destinationFile.Exists)
             {
-                Program.Context.Logger
+                Program.Logger
                     .Log(LogLevel.Info, "File is already in the destination and does not need to move.");
             }
             else
@@ -59,7 +59,7 @@ namespace dcsrt
                     FileSystemUtil.RecursivelyCreateDirectory(directory.Parent);
                 }
 
-                Program.Context.Logger.Log(LogLevel.Info, "Creating directory [{0}].", directory.FullName);
+                Program.Logger.Log(LogLevel.Info, "Creating directory [{0}].", directory.FullName);
                 directory.Create();
             }
         }

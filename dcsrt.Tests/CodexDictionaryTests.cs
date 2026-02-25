@@ -18,14 +18,14 @@ namespace dcsrt.Tests
         {
             CodexDictionary dictionary = new CodexDictionary
             {
-                RootPath = "C:\\Test",
                 Dictionary = new[]
                 {
                     new Codex { RuleId = "Rule1", Destination = "Path1", Words = new[] { "word1" } },
                     new Codex { RuleId = "Rule2", Destination = "Path2", Words = new[] { "word2" } }
                 }
             };
-            Assert.That(dictionary.RootPath, Is.EqualTo("C:\\Test"));
+            Assert.That(dictionary.Dictionary, Is.Not.Null);
+            Assert.That(dictionary.Dictionary, Has.Exactly(2).Items);
         }
 
         [Test()]
@@ -41,7 +41,7 @@ namespace dcsrt.Tests
                 }
             };
             int count = 0;
-            foreach (var codex in dictionary)
+            foreach (Codex codex in dictionary)
             {
                 count++;
             }

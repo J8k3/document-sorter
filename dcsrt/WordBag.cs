@@ -10,7 +10,8 @@ namespace dcsrt
 {
     public class WordBag : List<Token>
     {
-        //https://www.codeproject.com/Tips/1064878/Ranking-Tokens-using-TF-IDF-in-Csharp
+        private Dictionary<string, int> tokenIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
         private WordBag()
         { }
 
@@ -22,12 +23,15 @@ namespace dcsrt
         {
             WordBag wordBag = new WordBag();
 
-            wordBag.RawDocuments = TrainingActivity.LoadDocuments(sourceDirectoryPath, searchOption, pagesToExtractPerDocument);
+            wordBag.RawDocuments = PdfUtil.LoadDocuments(sourceDirectoryPath, searchOption, pagesToExtractPerDocument);
 
-            foreach (var sourceDocument in wordBag.RawDocuments)
+            int current = 0;
+            int total = wordBag.RawDocuments.Count;
+            foreach (KeyValuePair<string, string> sourceDocument in wordBag.RawDocuments)
             {
-                Console.Write(".");
-                Program.Context.Logger.Log(LogLevel.Trace, "Loading document [{0}].", sourceDocument.Key);
+                current++;
+                ProgressTracker.Update(current, total);
+                Program.Logger.Log(LogLevel.Trace, "Loading document [{0}].", sourceDocument.Key);
 
                 using (StackExchange.Profiling.Timing step = MiniProfiler.Current.Step($"Getting document vocabulary [{sourceDocument.Key}]."))
                 {
@@ -41,7 +45,12 @@ namespace dcsrt
                         {
                             int tokenIndex = wordBag.IndexOf(contentWord);
 
-                            if (tokenIndex == -1) { wordBag.Add(new Token(ref wordBag, contentWord)); tokenIndex = wordBag.Count() - 1; }
+                            if (tokenIndex == -1)
+                            {
+                                wordBag.Add(new Token(ref wordBag, contentWord));
+                                tokenIndex = wordBag.Count - 1;
+                                wordBag.tokenIndex[contentWord] = tokenIndex;
+                            }
 
                             int documentIndex = wordBag[tokenIndex].IndexOf(sourceDocument.Key);
 
@@ -60,26 +69,31 @@ namespace dcsrt
                 double maxWordCountInDoc = (from d in occurrences
                                             select d.OccurrenceCount).DefaultIfEmpty(0).Max();
 
-                foreach (var d in occurrences)
+                foreach (DocumentOccurrence d in occurrences)
                 {
                     d.MostFrequentWordInDocumentCount = maxWordCountInDoc;
                 }
             }
+
+            ProgressTracker.Complete();
 
             return wordBag;
         }
         
         public IEnumerable<string> GetCandidateVocabulary(double minDocumentFrequency)
         {
-            Program.Context.Logger.Log(LogLevel.Info, "Getting candidate vocabulary from WordBag.");
+            Program.Logger.Log(LogLevel.Info, "Getting candidate vocabulary from WordBag.");
 
             return this.Where(t => t.DocumentFrequency >= minDocumentFrequency).Select(t => t.Word);
         }
 
         public int IndexOf(string word)
         {
-            Token item = this.Where(t => string.Equals(t.Word, word, StringComparison.OrdinalIgnoreCase)).SingleOrDefault();
-            return this.IndexOf(item);
+            if (this.tokenIndex.TryGetValue(word, out int index))
+            {
+                return index;
+            }
+            return -1;
         }
     }
 }

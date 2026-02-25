@@ -31,7 +31,6 @@ namespace dcsrt.Tests
             {
                 CodexDictionary testCodex = new CodexDictionary
                 {
-                    RootPath = "C:\\Test",
                     Dictionary = new[]
                     {
                         new Codex { RuleId = "TestRule", Destination = "TestDest", Words = new[] { "test" } }
@@ -41,7 +40,6 @@ namespace dcsrt.Tests
                 File.WriteAllText(testFile, json);
                 CodexManager.Reload(testFile);
                 Assert.That(CodexManager.Codex, Is.Not.Null);
-                Assert.That(CodexManager.Codex.RootPath, Is.EqualTo("C:\\Test"));
                 Assert.That(CodexManager.CodexFilePath, Is.EqualTo(testFile));
             }
             finally
@@ -61,7 +59,6 @@ namespace dcsrt.Tests
             {
                 CodexDictionary testCodex = new CodexDictionary
                 {
-                    RootPath = "C:\\SaveTest",
                     Dictionary = new[]
                     {
                         new Codex { RuleId = "SaveRule", Destination = "SaveDest", Words = new[] { "save" } }
@@ -73,7 +70,7 @@ namespace dcsrt.Tests
                 CodexManager.Save();
                 Assert.That(File.Exists(testFile), Is.True);
                 string savedContent = File.ReadAllText(testFile);
-                Assert.That(savedContent, Does.Contain("SaveTest"));
+                Assert.That(savedContent, Does.Contain("SaveRule"));
             }
             finally
             {

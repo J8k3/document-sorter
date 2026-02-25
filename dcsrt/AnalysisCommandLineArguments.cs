@@ -20,5 +20,11 @@ namespace dcsrt
 
         [Option('m', "matching-strategy", Required = false, HelpText = "Algorithm for matching keywords: StringSearch (fast, exact) or Probabilistic (slower, fuzzy matching with typo tolerance).", Default = MatchingStrategy.StringSearch)]
         public MatchingStrategy MatchingStrategy { get; set; }
+
+        [Option('a', "pages-to-analyze", Required = false, HelpText = "Number of pages to extract from each PDF for analysis. Default is 1 (first page only). Use higher values if keywords appear on later pages.", Default = 1)]
+        public int PagesToAnalyze { get; set; }
+
+        [Option('n', "allow-multi-match", Required = false, HelpText = "Allow deterministic file moves when multiple rules match. When enabled, picks rule with most keywords (or alphabetically first if tied). When disabled (default), skips files with multiple matches.", Default = false)]
+        public bool AllowMultiMatch { get; set; }
     }
 }

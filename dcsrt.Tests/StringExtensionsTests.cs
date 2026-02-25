@@ -32,10 +32,10 @@ namespace dcsrt.Tests
         }
 
         [Test()]
-        public void RemoveExcludeWordsTest()
+        public void RemoveStopWordsTest()
         {
             string value = "This is the best string i've ever seen in my very alliteratively and long life.";
-            string result = value.RemoveExcludeWordsToLowerInvariant();
+            string result = value.RemoveStopWords();
             Assert.That(result, Is.EqualTo("string alliteratively life."));
         }
 
