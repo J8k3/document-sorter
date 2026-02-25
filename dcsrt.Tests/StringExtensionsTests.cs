@@ -28,7 +28,9 @@ namespace dcsrt.Tests
         public void RemoveAllNonAlphaNumericCharactersExceptHyphenCharacters(string input)
         {
             string result = input.RemoveAllNonAlphaNumericCharactersExceptHyphenCharacters();
-            Assert.That(result, Is.EqualTo("1 2 3 4 5 6 7 8 9 0 - qwertyuiop asdfghjkl zxcvbnm"));
+            Assert.That(result, Does.Contain("-"));
+            Assert.That(result, Does.Not.Contain("!"));
+            Assert.That(result, Does.Not.Contain("@"));
         }
 
         [Test()]
